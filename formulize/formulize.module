@@ -26,25 +26,32 @@
  */
 function _formulize_integration_init()
 {
-	// Get path of Formulize
-	$formulize_path = variable_get('formulize_full_path', NULL);
-	$formulize_path = is_dir($formulize_path) ? rtrim($formulize_path, '/\\') : dirname($formulize_path);
+	static $formulize_loaded = null;	// static var so we can load the include file just once
 
-	// Get the integration API path
-	$integration_api_path = $formulize_path . DIRECTORY_SEPARATOR . 'integration_api.php';
+	if (null === $formulize_loaded) {
+		// Get path of Formulize
+		$formulize_path = variable_get('formulize_full_path', NULL);
+		$formulize_path = is_dir($formulize_path) ? rtrim($formulize_path, '/\\') : dirname($formulize_path);
 
-	// Check if the integration API exists in the path specified
-	if (file_exists($integration_api_path)) {
-		// Set user ID for Formulize session
-		global $user, $formulizeHostSystemUserId;
-		$formulizeHostSystemUserId = $user->uid;
+		// Get the integration API path
+		$integration_api_path = $formulize_path . DIRECTORY_SEPARATOR . 'integration_api.php';
 
-		// Include the Formulize integration API
-		include_once($integration_api_path);
+		// Check if the integration API exists in the path specified
+		if (file_exists($integration_api_path)) {
+			// Set user ID for Formulize session
+			global $user, $formulizeHostSystemUserId;
+			$formulizeHostSystemUserId = $user->uid;
 
-		return true;
+			// Include the Formulize integration API
+			include_once($integration_api_path);
+
+			$formulize_loaded = true;
+		} else {
+			$formulize_loaded = false;
+		}
 	}
-	return false;
+
+	return $formulize_loaded;
 }
 
 /**
@@ -54,15 +61,14 @@ function formulize_init()
 {
 	global $user;
 
-	$included = _formulize_integration_init();
-
 	// If we can't include the integration API, let administrators know to set the Formulize path
-	if (!$included
+	if (!_formulize_integration_init()
 		&& $user->roles
 		&& array_key_exists(3, $user->roles)
 		&& current_path() != 'admin/settings/formulize/path'
 	) {
-		drupal_set_message(t('The Formulize path is not set. Please <a href="' . url('admin/settings/formulize/path') . '">set the Formulize path</a>.'), 'error', FALSE);
+		drupal_set_message(t('The Formulize path is not set. Please <a href="' . url('admin/settings/formulize/path') .
+			'">set the Formulize path</a>.'), 'error', FALSE);
 	}
 }
 

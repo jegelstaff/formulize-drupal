@@ -355,8 +355,6 @@ function formulize_update($node)
 		formulize_insert($node);
 	}
 	else {
-		//db_query("UPDATE {formulize} SET screen_id = %d WHERE vid = %d", $node->screen_id, $node->vid);
-
 		db_update('formulize') // Table name no longer needs {}
 			->fields(array('screen_id' => $node->screen_id))
 			->condition('vid', $node->vid, '=')
@@ -375,8 +373,6 @@ function formulize_update($node)
 function formulize_node_revision_delete($node)
 {
 	//Notice that we're matching a single revision based on the node's vid.
-	//db_query('DELETE FROM {formulize} WHERE vid = %d', $node->vid);
-
 	db_delete('formulize')
 		->condition('vid', $node->vid)
 		->execute();
@@ -390,9 +386,7 @@ function formulize_node_revision_delete($node)
  */
 function formulize_delete($node)
 {
-	// Notice that we're matching all revision, by using the node's nid.
-	//db_query('DELETE FROM {formulize} WHERE nid = %d', $node->nid);
-
+	// Notice that we're matching all revisions, by using the node's nid.
 	db_delete('formulize')
 		->condition('nid', $node->nid)
 		->execute();

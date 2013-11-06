@@ -65,6 +65,17 @@ function formulize_og_sync_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 	
+		$items['admin/settings/formulize/group-multiplier'] = array(
+    'title' => 'Formulize group multiplier',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('formulize_og_multiplier'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+		'weight' => 0,
+    'description' => 'Settings for complex Organic groups and Formulize group integration (FOR ACTUA ONLY!).',
+    'type' => MENU_NORMAL_ITEM,
+  );
+	
 	 return $items;
 }
 
@@ -73,11 +84,10 @@ function formulize_og_sync_menu() {
  */
 function formulize_og_settings() {
   // content types
-  // Don't know equivalent function in D7 OG...could be manner of config has changed so there is no equivalent
-  /*$is_configured = count(og_get_types('group'));
+  $is_configured = count(og_get_types('group'));
   if (!$is_configured) {
     form_set_error('formulize_og_settings', t('You must designate at least one content type to act as a group node. <a href="!create">Create new content type</a> if needed.', array('!create' => url('admin/content/types/add', array('query' => drupal_get_destination())))));
-  }*/
+  }
 	
 	$options = array();
   foreach (node_get_types() as $type) {
@@ -121,6 +131,50 @@ function formulize_og_settings_submit($form, &$form_state) {
 }
 
 /**
+ * Get list of OG groups
+ */
+function _formulize_get_og_list() {}
+
+/**
+ * Menu callback for admin/formulize/og/group-multiplier
+ */
+function formulize_og_multiplier() {
+	
+  $form['formulize_group']  = array(
+    '#type' => 'checkboxes',
+    '#title' => t('If you are Actua, choose the groups where you will need special Director and Instructor groups in Formulize'),
+    '#description' => t('If you are Actua, this version of the module will include two multiplier groups - Director and Instructor, as per Actua\'s needs. Your choices here will mean there will be three groups in Formulize. E.g. A "Summer Science Camp" group chosen here will create a "Summer Science Camp Directors" group and a "Summer Science Camp Instructor" group as well.'),
+		'#default_value' => _formulize_get_multiplier_group_list(),
+		'#options' => _formulize_get_group_list()
+  );
+
+	$form['submit'] = array(
+		'#type' => 'submit', 
+		'#value' => t('Set Formulize multiples'),
+		'#weight' => '5'
+	);
+	//dsm($form);
+	
+	return $form;
+}
+
+/**
+ * Get existing list of multiplier group nodes
+ */
+
+function _formulize_get_multiplier_group_list() {
+	
+	$result = db_query("SELECT DISTINCT(nid) FROM {formulize_og_sync} fos");
+	
+	$multiplier_group_node_list = array();
+	while($row = db_fetch_object($result)) {
+		$multiplier_group_node_list[$row->nid] = $row->nid;
+	}
+	
+	return $multiplier_group_node_list;
+}
+
+/**
  * Get list of group nodes
  * We want to assign some group nodes as "multipliers" for advanced permissions
  */
@@ -141,6 +195,43 @@ function _formulize_get_group_list() {
 	}
 	
 	return $group_node_list;
+}
+
+/**
+ * Group Multiplier Form validation
+ */
+function formulize_og_multiplier_validate($form, &$form_state) {
+  if ($form_state['values']['nid'] == '') {
+    //form_set_error('', t('Do something.'));
+  }
+}
+
+/**
+ * Group Multiplier Form submissions handler
+ * 
+ * The extra Formulize groups are hard-wired, and there is no checking if the Formulize group already exists.
+ * Next to do is also create the Formulize groups based on the translation table.
+ */
+function formulize_og_multiplier_submit($form, &$form_state) {
+	$form_values = $form_state['values'];
+	
+	if ($form_values['submit']) {
+		foreach($form_values['formulize_group'] as $key => $value) {
+			if ($value != 0) {
+			  $node = node_load(array('nid' => $key));
+ 				$name  = trim( $node->title );
+				$description = trim( $node->og_description );
+
+				_formulize_insert_group_multipliers($key,$name,$description);
+
+				$message = $name . t(' set as Formulize group.');
+				drupal_set_message($message);
+			}
+			elseif ($key && $value == 0) {
+				//TODO: if we get a blank key then we need to check if we need to remove the duplicates in Formulize
+			}
+		}
+	}
 }
 
 /**
@@ -237,7 +328,7 @@ function formulize_og_sync_nodeapi(&$node, $op, $teaser, $page) {
  * Implementation of hook_og().
  * 
  * When a user is added or removed we do the same to the equivalent group in Formulize.
- *//*
+ */
 function formulize_og_sync_og($op, $gid, $uid, $args) {
   switch ($op) {
     case 'user insert':
@@ -263,14 +354,6 @@ function formulize_og_sync_og($op, $gid, $uid, $args) {
 			// not sure if we need to do anything with these triggers
       break;
   }
-}*/
-
-/**
- *Implementation of hook_og_membership_update
- */
-function formulize_og_sync_og_membership_update($og_membership) {
-    //_formulize_add_user_to_group($og_membership->group(),entity_id($og_membership)
-    print_r($og_membership);
 }
 
 /**
@@ -303,8 +386,7 @@ function formulize_og_sync_user($op, &$edit, &$account, $category) {
  */
 function _formulize_og_sync_groups( )
 {
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
@@ -329,13 +411,12 @@ function _formulize_og_sync_groups( )
  */
 function _formulize_insert_group($nid,$name,$description,$formulize_group_kind='')
 {
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
-	$xoops_group = $member_handler->createGroup();
-	$xoops_group->setVar('name',$name);
+  $xoops_group = $member_handler->createGroup();
+	$xoops_group->setVar('name',_formulize_convert_group_name($name,$formulize_group_kind));
 	$xoops_group->setVar('description',$description);
 
 	$member_handler->insertGroup($xoops_group);
@@ -345,14 +426,44 @@ function _formulize_insert_group($nid,$name,$description,$formulize_group_kind='
 	return $xoops_group;
 }
 
+function _formulize_get_multipliers()
+{
+	// 8 is a constant of the Directors nid
+	// 123 is a constant of the Instructors nid
+	$multipliers = array(array('Directors',8),array('Instructors',123));
+	
+	return $multipliers;
+}
+
+/**
+ * Insert multiple Drupal groups into XOOPS
+ */
+function _formulize_insert_group_multipliers($nid,$name,$description)
+{
+	$db = _formulize_get_connection();
+
+	$member_handler =& xoops_gethandler('member');
+
+	$multipliers = _formulize_get_multipliers();
+
+	foreach($multipliers as $multiplier)
+	{
+		$xoops_group = _formulize_insert_group($nid,$name,$description,$multiplier[0]);
+
+		// add users to group
+		$results = db_query("SELECT og1.uid FROM {og_uid} as og1 JOIN {og_uid} og2 ON og2.uid=og1.uid WHERE og1.nid=%d AND og2.nid=%d ORDER BY og1.uid",$nid,$multiplier[1]);
+		while($result = db_fetch_array($results)) {
+			$member_handler->addUserToGroup($xoops_group->getVar('groupid'),$result['uid']);
+		}
+	}
+}
 
 /**
  * When a Drupal OG group changes, update in XOOPS
  */
 function _formulize_update_group($nid,$name,$description)
 {
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
@@ -360,7 +471,7 @@ function _formulize_update_group($nid,$name,$description)
 	$results = db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND NOT formulize_group_kind='%s'",$nid,'');
 	while($result = db_fetch_array($results)) {
 		$xoops_group = $member_handler->getGroup($result['formulize_groupid']);
-		$xoops_group->setVar('name',$name);
+		$xoops_group->setVar('name',_formulize_convert_group_name($name,$result['formulize_group_kind']));
 		$xoops_group->setVar('description',$description);
 
 		$member_handler->insertGroup($xoops_group);
@@ -368,7 +479,7 @@ function _formulize_update_group($nid,$name,$description)
 
 	$result = db_fetch_array(db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,''));
   $xoops_group = $member_handler->getGroup($result['formulize_groupid']);
-	$xoops_group->setVar('name',$name);
+	$xoops_group->setVar('name',_formulize_convert_group_name($name,''));
 	$xoops_group->setVar('description',$description);
 
 	$member_handler->insertGroup($xoops_group);
@@ -380,8 +491,7 @@ function _formulize_update_group($nid,$name,$description)
 function _formulize_delete_group($og_group) {
 	//TODO: delete duplicate groups when removing main group and remove entries from formulize_og_sync
 	
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
@@ -389,7 +499,7 @@ function _formulize_delete_group($og_group) {
 	$results = db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND NOT formulize_group_kind='%s'",$og_group->nid,'');
 	while($result = db_fetch_array($results)) {
 		$xoops_group = $member_handler->getGroup($result['formulize_groupid']);
-		$xoops_group->setVar('name',$name);
+		$xoops_group->setVar('name',_formulize_convert_group_name($name,$result['formulize_group_kind']));
 		$xoops_group->setVar('description',$description);
 
 		$member_handler->deleteGroup( $xoops_group );
@@ -413,15 +523,29 @@ function _formulize_delete_group($og_group) {
  */
 function _formulize_add_user_to_group($nid,$uid)
 {
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
 	$result = db_fetch_array(db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,''));
 	$member_handler->addUserToGroup($result['formulize_groupid'],$uid);
 
-	
+	// multipliers
+	$multipliers = _formulize_get_multipliers();
+	foreach($multipliers as $multiplier)
+	{
+		// add users to group
+		//$result = db_fetch_array(db_query("SELECT * FROM {og_uid} WHERE uid=%d AND nid=%d",$uid,$multiplier[1]));
+		$result = db_fetch_array(db_query("SELECT og2.* FROM {og_uid} as og1 JOIN {og_uid} og2 ON og2.uid=og1.uid WHERE og1.nid=%d AND og2.nid=%d AND og2.uid=%d",$nid,$multiplier[1],$uid));
+		//drupal_set_message(sprintf("SELECT og2.* FROM {og_uid} as og1 JOIN {og_uid} og2 ON og2.uid=og1.uid WHERE og1.nid=%d AND og2.nid=%d AND og2.uid=%d",$nid,$multiplier[1],$uid));
+		if($result) {
+			$result = db_fetch_array(db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,$multiplier[0]));
+			//drupal_set_message(sprintf("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,$multiplier[0]));
+			if($result) {
+				$member_handler->addUserToGroup($result['formulize_groupid'],$uid);
+			}
+		}
+	}
 }
 
 /**
@@ -434,8 +558,7 @@ function _formulize_add_user_to_group($nid,$uid)
  */
 function _formulize_remove_user_from_group($nid,$uid)
 {
-	Formulize::init();
-	$db = $GLOBALS['xoopsDB'];
+	$db = _formulize_get_connection();
 
 	$member_handler =& xoops_gethandler('member');
 
@@ -444,6 +567,41 @@ function _formulize_remove_user_from_group($nid,$uid)
 	$result = db_fetch_array(db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,''));
 	$member_handler->removeUsersFromGroup($result['formulize_groupid'],$user_ids);
 
+	// multipliers
+	$multipliers = _formulize_get_multipliers();
+	foreach($multipliers as $multiplier)
+	{
+		// add users to group
+		//$result = db_fetch_array(db_query("SELECT * FROM {og_uid} WHERE uid=%d AND nid=%d",$uid,$multiplier[1]));
+		$result = db_fetch_array(db_query("SELECT og2.* FROM {og_uid} as og1 JOIN {og_uid} og2 ON og2.uid=og1.uid WHERE og1.nid=%d AND og2.nid=%d AND og2.uid=%d",$nid,$multiplier[1],$uid));
+		if($result) {
+			$result = db_fetch_array(db_query("SELECT * FROM {formulize_og_sync} WHERE nid=%d AND formulize_group_kind='%s'",$nid,$multiplier[0]));
+			if($result) {
+				$member_handler->removeUsersFromGroup($result['formulize_groupid'],$user_ids);
+			}
+		}
+	}
 }
 
+/**
+ * Convert a Drupal group name into XOOPS
+ */
+function _formulize_convert_group_name($name,$formulize_group_kind)
+{
+	// XOOPS groups.name is varchar(50)
+	$name_len = strlen($name);
+	$kind_len = strlen($formulize_group_kind);
+	$name_ouput = $name;
 
+	//-3 constant is space for ...
+	if($name_len+$kind_len+1 > 50) {
+		$name_ouput = substr($name_ouput,0,50-$kind_len-3);
+		$name_ouput .= '...';
+	}
+	else
+		$name_ouput .= ' ';
+
+	$name_ouput .= $formulize_group_kind;
+
+	return $name_ouput;
+}

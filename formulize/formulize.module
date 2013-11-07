@@ -1,6 +1,13 @@
 <?php
 // $Id$
 
+if (module_exists("og")) {
+	// if the organic groups modules is loaded, then also load our organic group hooks
+	// note that this is included here, rather than inside _formulize_integration_init() because that
+	//	function may not be called until later, so an og module hook could be called first
+	include_once(drupal_get_path('module', 'formulize') . "/formulize-og.php");
+}
+
 /** 
  * Project:     Formulize: data management rapid application development
  * File:        formulize.module 
@@ -255,6 +262,9 @@ function formulize_sync_submit($form, &$form_state)
 			Formulize::create_resource_mapping_table();
 			_formulize_sync_groups();
 			_formulize_sync_users();
+			if (module_exists("og") or function_exists("og_is_group_type")) {
+				_formulize_sync_organic_groups();
+			}
 			drupal_set_message(t('Users and groups have been successfully synchronized with Formulize.'), 'status', FALSE);
 		}
 	} else {

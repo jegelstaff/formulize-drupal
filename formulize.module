@@ -612,6 +612,18 @@ function _formulize_convert_language($account)
 }
 
 /**
+ * This hook is called when a role is created in Drupal.
+ */
+function formulize_user_role_insert($role)
+{
+    if (!_formulize_integration_init())
+        return;
+
+    // yes, we are using the Drupal group name as the name, description and type for Formulize
+    Formulize::createGroup($role->rid, $role->name, $role->name, $role->name);
+}
+
+/**
  * When a Drupal role changes, update group in XOOPS
  */
 function formulize_user_role_update($role)

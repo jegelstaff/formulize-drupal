@@ -528,6 +528,8 @@ function formulize_user_insert($edit, $account, $category)
 	if (!_formulize_integration_init())
 		return;
 
+	$offset = _formulize_calculate_timezone_offset($account->timezone);
+		
 	$user_data = array(
 		'uid'				=> $account->uid,
 		'uname'				=> $account->name,
@@ -535,7 +537,7 @@ function formulize_user_insert($edit, $account, $category)
 		'name'				=> $account->name,
 		'pass'				=> $account->pass,
 		'email'				=> $account->mail,
-		'timezone_offset'	=> $account->timezone/60/60,
+		'timezone_offset'	=> $offset/60/60,
 		'language'			=> _formulize_convert_language($account->language),
 		'user_avatar'		=> 'blank.gif',
 		'theme'				=> 'impresstheme',
@@ -559,13 +561,15 @@ function formulize_user_update($edit, $account, $category)
 	if (!_formulize_integration_init())
 		return;
 
+	$offset = _formulize_calculate_timezone_offset($account->timezone);
+
 	$user_data = array(
 		'uname'				=> $account->name,
 		'login_name'		=> $account->name,
 		'name'				=> $account->name,
 		'pass'				=> $account->pass,
 		'email'				=> $account->mail,
-		'timezone_offset'	=> $account->timezone/60/60,
+		'timezone_offset'	=> $offset/60/60,
 		'language'			=> _formulize_convert_language($account->language)
 	);
 
@@ -643,4 +647,18 @@ function formulize_user_role_delete($role)
 		return;
 
 	Formulize::deleteGroup($role->rid);
+}
+
+/**
+ * Takes a timezone string, and returns the offset for a timezone in seconds
+ */
+function _formulize_calculate_timezone_offset($timezone) {
+	if(!is_numeric($timezone)) {
+		$userTimezone = new DateTimeZone($timezone);
+		$userDateTime = new DateTime('now', $userTimezone);
+		$offset = $userTimezone->getOffset($userDateTime);
+	} else {
+		$offset = $timezone();
+	}
+	return $offset;
 }

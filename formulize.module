@@ -644,3 +644,27 @@ function formulize_user_role_delete($role)
 
 	Formulize::deleteGroup($role->rid);
 }
+
+/**
+ * Implements hook_regcode_used().
+ *
+ * Add the new user to the right group in Formulize corresponding to the role
+ */
+function formuilze_regcode_used($edit, $account, $regcode)
+{
+  if (!_formulize_integration_init())
+	return;
+    
+  // Do nothing if the regcode is not valid
+  if (!is_object($regcode)) {
+    return;
+  }
+
+  // Grab applicable roles for category used
+  $rules = regcode_roles_get_rules($regcode->tags);
+
+  // Add user to groups the regcode allows
+  foreach ($rules as $rule) {
+    Formulize::addUserToGroup($account->uid, $rule['role_id']);
+  }
+}

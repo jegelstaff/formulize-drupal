@@ -644,3 +644,42 @@ function formulize_user_role_delete($role)
 
 	Formulize::deleteGroup($role->rid);
 }
+
+/**
+ * Implements hook_regcode_used().
+ *
+ * Add the new user to the right group in Formulize corresponding to the role
+ */
+function formulize_regcode_used($edit, $account, $regcode)
+{
+    
+  if (!_formulize_integration_init())
+	return;
+    
+  // Do nothing if the regcode is not valid
+  if (!is_object($regcode)) {
+    return;
+  }
+
+  // Grab applicable roles for category used
+  $rules = regcode_roles_get_rules($regcode->tags);
+  
+  // Add user to role-groups the regcode allows
+  foreach ($rules as $rule) {
+    Formulize::addUserToGroup($account->uid, $rule['role_id']);
+  }
+  
+  $settings = variable_get('regcode_og_settings', array());
+
+  // Add user to the og-groups the regcode allows
+  $tags = array_keys($regcode->tags);
+  foreach ($settings as $rule) {
+    if (in_array($rule['tid'], $tags)) {
+      foreach ($rule['ogs'] as $ogid) {
+        Formulize::addUserToGroup($account->uid, -1 * $ogid); // use negative group ids for OG groups, so there is no collisions with roles...should be another resource type but whatever
+      }
+    }
+  }
+  
+}
+

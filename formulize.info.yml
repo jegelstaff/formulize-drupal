@@ -1,0 +1,10 @@
+name: Formulize
+type: module
+description: 'Integrates Drupal with the Formulize data management system: single sign-on, and deployment of Formulize screens as Drupal content.'
+package: Formulize
+core_version_requirement: ^11
+configure: formulize.settings
+dependencies:
+  - drupal:field
+  - drupal:node
+  - drupal:user

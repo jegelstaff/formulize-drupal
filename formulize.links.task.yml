@@ -1,0 +1,11 @@
+formulize.settings:
+  title: 'Settings'
+  route_name: formulize.settings
+  base_route: formulize.settings
+  weight: 0
+
+formulize.sync:
+  title: 'Users and groups'
+  route_name: formulize.sync
+  base_route: formulize.settings
+  weight: 10

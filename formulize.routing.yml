@@ -1,0 +1,15 @@
+formulize.settings:
+  path: '/admin/config/formulize'
+  defaults:
+    _form: '\Drupal\formulize\Form\SettingsForm'
+    _title: 'Formulize'
+  requirements:
+    _permission: 'administer formulize'
+
+formulize.sync:
+  path: '/admin/config/formulize/sync'
+  defaults:
+    _form: '\Drupal\formulize\Form\SyncForm'
+    _title: 'Formulize users and groups'
+  requirements:
+    _permission: 'administer formulize'

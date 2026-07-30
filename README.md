@@ -1,0 +1,143 @@
+# Formulize integration for Drupal 11
+
+Runs Drupal and [Formulize](https://formulize.org) side by side on one server, in one PHP process, and
+gives you two things:
+
+1. **Single sign-on.** Drupal users and roles are mirrored into Formulize's user and group tables, so a
+   Drupal user viewing an embedded screen arrives with real Formulize permissions.
+2. **Screens as Drupal content.** A "Formulize screen" content type whose nodes each display a screen
+   from Formulize inside your Drupal theme. The same thing is available as a field you can attach to any
+   entity, and as a block.
+
+This replaces the Drupal 7 module of the same name. Every hook that one relied on (`hook_init`,
+`hook_node_info`, `hook_view`, `variable_get`) was removed in Drupal 8.
+
+## Requirements
+
+- Drupal 11, PHP 8.3
+- A Formulize installation **on the same server, sharing a document root with Drupal**. The two systems
+  are active in the same PHP request, so this is not optional.
+- Formulize's `formulize_resource_mapping` table, which comes with Formulize's own schema. The status
+  report will tell you if it is missing.
+
+## Setup
+
+1. Enable the module.
+2. Go to **Configuration → Web services → Formulize** and enter where Formulize is. Either form works:
+   - the address it is served at, e.g. `http://example.com` or `http://example.com/formulize`
+   - the filesystem path to its directory, e.g. `/var/www/html`
+
+   The address is usually easier, since an absolute server path is often unknowable on shared hosting.
+   The module works the path out by subtracting Drupal's own base path from its filesystem root to find
+   the shared document root, then appending the URL's path. If that cannot work it falls back to looking
+   in the directories above Drupal, and the page tells you which approach succeeded.
+3. Go to the **Users and groups** tab and run the synchronisation once. After that, users and roles are
+   kept in step automatically as they are created and changed.
+4. Create a Formulize screen node, or place a Formulize screen block.
+
+Check **Reports → Status report** to confirm the connection, and the site log for anything Formulize
+complains about.
+
+## How the single sign-on works
+
+There is no login event and no logout hook. On any request that needs Formulize, the module sets
+`$GLOBALS['formulizeHostSystemUserId']` to the current Drupal user's ID before including Formulize.
+Formulize's session handler picks that up, maps it through `formulize_resource_mapping` and builds a
+session without asking for a password. Setting it to `0` tears the Formulize session down, which is what
+"Drupal decides who is signed in" does when nobody is logged into Drupal.
+
+Passwords are never copied. Drupal only holds a hash, and Formulize could not validate a Drupal hash
+even if it had one. New Formulize accounts get a random password that is never recorded, so no account
+is left with an empty one.
+
+Drupal role IDs are strings, and that needs no special handling: Formulize's mapping table keeps a
+non-numeric external ID in its `external_id_string` column. Drupal's three built-in roles are mapped to
+the equivalent Formulize groups rather than duplicating them:
+
+| Drupal role | Formulize group |
+|---|---|
+| `anonymous` | 3, Anonymous |
+| `authenticated` | 2, Registered Users |
+| `administrator` | 1, Webmasters |
+| anything else | a new group |
+
+Blocking a Drupal user sets their Formulize account inactive. Deleting one removes the Formulize account.
+
+## Things to know
+
+**One screen per page.** Formulize is not re-entrant: rendering a screen includes its `header.php` and
+module index, several of the includes below them are `include_once` guarded, and `header.php` ends in a
+content-cache check that can `exit()` on a second pass. So the first screen on a page renders and any
+others are skipped with a message for administrators. A node field and a block cannot both show a screen
+on the same page.
+
+**jQuery.** An embedded screen runs on **Drupal's** jQuery. There is only one jQuery on the page and
+nothing is reasserted over anything: Formulize's front-side code uses only APIs present in every jQuery
+from 1.7 to 4.x, so Drupal's 4.0.0 runs it unchanged. Formulize's own jQuery, jquery-migrate and colorbox
+are filtered out of the harvested asset list.
+
+The one thing Drupal cannot supply is **jQuery UI**, removed from core in Drupal 10. The
+`formulize/screen` library adds 1.14.2 — the release tested against jQuery 4 — ordered after
+`core/jquery` by its dependency. Standalone Formulize is untouched by any of this: it keeps loading
+jQuery 1.12.4, jquery-migrate and jQuery UI 1.11.4 from its own `header.php`.
+
+Turn off *Load the scripts Formulize asks for* to skip the harvested scripts and jQuery UI, in which case
+your theme has to supply equivalents.
+
+**Styling is approximate, and maintains itself.** Screens are styled by
+`modules/formulize/cache/drupal-{theme}.css` in the Formulize installation, generated by
+`modules/formulize/templates/css/build-drupal-css.php` from `icms.css`, `formulize.css` and every
+stylesheet in the active Formulize theme's `css` folder, with each selector rewritten to sit under the
+screen's `#formulize_form` div. That keeps Formulize's CSS reset and its bare `body`/`button`/`table`
+rules from restyling your whole Drupal page, but it also means a screen looks like the Formulize theme
+rather than like your Drupal theme.
+
+You do not need to regenerate it by hand. The generated file records the modification time of every
+source it was built from, and this module checks that on each screen render, rebuilding only when a
+source has actually changed. Switching the Formulize theme, or editing a theme stylesheet, is picked up
+automatically. If `modules/formulize/cache/` is not writable the existing file is served and the reason
+is logged, so a locked-down deployment degrades rather than breaks — run the generator from the command
+line as part of your deploy in that case.
+
+**Performance.** Rendering a screen boots the whole of Formulize, so it is not cheap, and the result can
+never be cached — a screen also processes any form submitted to the current URL. Avoid placing a screen
+block in a region with no visibility conditions, or every page in the theme will pay for it.
+
+**Permissions.** Who may see what inside a screen is Formulize's decision, made from the group
+memberships this module maintains. Drupal's own node permissions control access to the node.
+
+## Structure
+
+```
+src/FormulizePathResolver.php     finds Formulize from a path or a URL
+src/FormulizeBootstrap.php        loads Formulize into the request, sets the SSO globals
+src/FormulizeScreenRenderer.php   renders a screen into a Drupal render array
+src/FormulizeScreenList.php       the list of screens to choose from
+src/FormulizeUserSync.php         mirrors users, roles and group membership
+src/Hook/                         entity hooks, block placeholder opt-out, status report
+src/Plugin/Field/                 the formulize_screen field type, widget and formatter
+src/Plugin/Block/                 the screen block
+formulize.libraries.yml           adds jQuery UI, which Drupal core no longer ships
+config/install/                   the Formulize screen content type and its field
+```
+
+## Changes this needs in Formulize itself
+
+The module depends on four changes on the Formulize side:
+
+- `integration_api.php` gained `Formulize::getScreenHtml()`, which returns a screen's markup **and** the
+  assets Formulize registered while rendering it. An embedded render skips Formulize's theme footer,
+  which is what would normally output those, so they are handed back for Drupal to put in its own head.
+  Taking the list from Formulize rather than hardcoding it means this module always loads the same jQuery
+  and jQuery UI versions as the rest of Formulize.
+- `initialize.php` no longer detects Drupal by duck-typing Drupal 7's global `$user` object, and offers a
+  link to the host system's login page instead of redirecting.
+- `initialize.php` no longer redirects and `exit()`s when an anonymous visitor reaches a screen that
+  cannot be rendered, which would truncate the Drupal response mid-page.
+- `build-drupal-css.php` generates the scoped, per-theme stylesheet into `modules/formulize/cache/`, and
+  exposes `formulize_drupalCssIsStale()` so this module can regenerate on demand. It replaces
+  `templates/css/drupal.css`, which was a copy of the Drupal 7 module's 2017 stylesheet and predated the
+  current Formulize theme.
+- `themes/Anari/theme.html` documents that a theme must emit its own stylesheets *after*
+  `<{$icms_module_header}>`. The generator concatenates them in that order, so a theme that does it the
+  other way round would make the embedded copy disagree with the live page.

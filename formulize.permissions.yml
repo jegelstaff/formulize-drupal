@@ -1,0 +1,4 @@
+administer formulize:
+  title: 'Administer Formulize integration'
+  description: 'Configure the connection to Formulize, and synchronise Drupal users and roles into it.'
+  restrict access: true

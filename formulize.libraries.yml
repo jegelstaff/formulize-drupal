@@ -1,0 +1,38 @@
+# jQuery UI, which Drupal 11 does not ship but Formulize screens need: dialog for subform and entry
+# popups, datepicker for date elements, plus accordion, sortable and autocomplete.
+#
+# jQuery itself is deliberately NOT here. Drupal provides it, and Formulize's front-side code uses only
+# APIs present in every jQuery from 1.7 to 4.x, so one copy serves both systems. That is what let the
+# previous arrangement go: Formulize's own jQuery used to be loaded alongside Drupal's and reasserted
+# over it in the header and again in the footer, after a noConflict() call clobbered it in between.
+#
+# 1.14.2 is the release the jQuery UI team tested against jQuery 4.0.0, and it still ships every widget
+# used here. Standalone Formulize keeps loading jQuery UI 1.11.4 on jQuery 1.12.4 from header.php; only
+# the embedded case uses 1.14.2, because only the embedded case runs on jQuery 4.
+#
+# The core/jquery dependency is what orders this after Drupal's jQuery. Ordering has to come from
+# dependencies, because Drupal rejects positive weights in libraries.
+screen:
+  version: 1.x
+  # header: true is load-bearing, not a preference. Drupal renders JS in the footer by default, and
+  # declaring a header library also hoists its dependencies, so this is what puts Drupal's jQuery and
+  # jQuery UI in the <head> - ahead of the screen markup in the body.
+  #
+  # It matters because Formulize carries its own fallback loader ($codeToIncludejQueryWhenNecessary in
+  # modules/formulize/include/functions.php): inline screen JS checks "if (typeof jQuery ==
+  # 'undefined')" and, finding none, injects jQuery 1.4.2 and jQuery UI 1.8.2 from Formulize's bundled
+  # copies. Without header: true that fallback fires, a 2010 jQuery wins the global, and everything
+  # using .on() breaks with "$(...).on is not a function".
+  header: true
+  remote: https://jqueryui.com
+  license:
+    name: MIT
+    url: https://jquery.org/license/
+    gpl-compatible: true
+  js:
+    https://code.jquery.com/ui/1.14.2/jquery-ui.min.js: { type: external, minified: true }
+  css:
+    component:
+      https://code.jquery.com/ui/1.14.2/themes/smoothness/jquery-ui.css: { type: external }
+  dependencies:
+    - core/jquery

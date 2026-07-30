@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - node.type.formulize_screen
+id: node.formulize_screen.title
+field_name: title
+entity_type: node
+bundle: formulize_screen
+label: 'Screen name'
+description: ''
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: string

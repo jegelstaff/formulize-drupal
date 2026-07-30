@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_formulize_screen
+    - node.type.formulize_screen
+  module:
+    - formulize
+id: node.formulize_screen.field_formulize_screen
+field_name: field_formulize_screen
+entity_type: node
+bundle: formulize_screen
+label: 'Formulize screen'
+description: 'The screen to display on this page.'
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: formulize_screen

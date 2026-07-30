@@ -1,0 +1,34 @@
+services:
+  logger.channel.formulize:
+    parent: logger.channel_base
+    arguments: ['formulize']
+
+  Drupal\formulize\FormulizePathResolver:
+    arguments:
+      - '@config.factory'
+      - '@state'
+      - '@request_stack'
+
+  Drupal\formulize\FormulizeBootstrap:
+    arguments:
+      - '@Drupal\formulize\FormulizePathResolver'
+      - '@config.factory'
+      - '@current_user'
+      - '@logger.channel.formulize'
+
+  Drupal\formulize\FormulizeScreenList:
+    arguments:
+      - '@Drupal\formulize\FormulizeBootstrap'
+      - '@logger.channel.formulize'
+
+  Drupal\formulize\FormulizeScreenRenderer:
+    arguments:
+      - '@Drupal\formulize\FormulizeBootstrap'
+      - '@config.factory'
+      - '@current_user'
+      - '@logger.channel.formulize'
+
+  Drupal\formulize\FormulizeUserSync:
+    arguments:
+      - '@Drupal\formulize\FormulizeBootstrap'
+      - '@logger.channel.formulize'

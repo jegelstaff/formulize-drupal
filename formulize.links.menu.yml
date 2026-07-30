@@ -1,0 +1,6 @@
+formulize.settings:
+  title: 'Formulize'
+  description: 'Configure the connection to your Formulize installation.'
+  route_name: formulize.settings
+  parent: system.admin_config_services
+  weight: 0

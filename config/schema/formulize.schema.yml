@@ -1,0 +1,44 @@
+formulize.settings:
+  type: config_object
+  label: 'Formulize integration settings'
+  mapping:
+    location:
+      type: string
+      label: 'Formulize location, as either a filesystem path or a URL'
+    authoritative_session:
+      type: boolean
+      label: 'Treat the Drupal session as authoritative for Formulize identity'
+    attach_js_assets:
+      type: boolean
+      label: 'Add the scripts Formulize registers, including jQuery, to the page'
+    load_theme_fonts:
+      type: boolean
+      label: 'Add the Formulize theme webfont and icon font to the page'
+
+field.formatter.settings.formulize_screen:
+  type: mapping
+  label: 'Formulize screen formatter settings'
+  mapping: {}
+
+field.widget.settings.formulize_screen_select:
+  type: mapping
+  label: 'Formulize screen select widget settings'
+  mapping: {}
+
+field.field_settings.formulize_screen:
+  type: mapping
+  label: 'Formulize screen field settings'
+  mapping: {}
+
+field.storage_settings.formulize_screen:
+  type: mapping
+  label: 'Formulize screen field storage settings'
+  mapping: {}
+
+block.settings.formulize_screen:
+  type: block_settings
+  label: 'Formulize screen block'
+  mapping:
+    screen_id:
+      type: integer
+      label: 'Screen'

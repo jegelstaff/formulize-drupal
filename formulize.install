@@ -1,0 +1,28 @@
+<?php
+
+/**
+ * @file
+ * Install and uninstall routines for the Formulize integration module.
+ */
+
+declare(strict_types=1);
+
+use Drupal\formulize\FormulizePathResolver;
+
+/**
+ * Implements hook_install().
+ */
+function formulize_install(): void {
+  \Drupal::messenger()->addStatus((string) t('Formulize is enabled. Tell it where your Formulize installation is on the <a href=":url">Formulize settings page</a> before adding any screens.', [
+    ':url' => \Drupal\Core\Url::fromRoute('formulize.settings')->toString(),
+  ]));
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function formulize_uninstall(): void {
+  // The resolved filesystem path is cached in state rather than config, so it is not removed
+  // along with the module's configuration.
+  \Drupal::state()->delete(FormulizePathResolver::STATE_KEY);
+}

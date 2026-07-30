@@ -1,0 +1,4 @@
+location: ''
+authoritative_session: true
+attach_js_assets: true
+load_theme_fonts: true

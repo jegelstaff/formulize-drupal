@@ -1,0 +1,10 @@
+langcode: en
+status: true
+dependencies: {  }
+name: 'Formulize screen'
+type: formulize_screen
+description: 'A page that displays a screen from Formulize, inside your Drupal theme.'
+help: ''
+new_revision: true
+preview_mode: 0
+display_submitted: false

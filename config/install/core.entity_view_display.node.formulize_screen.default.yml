@@ -1,0 +1,23 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.formulize_screen.field_formulize_screen
+    - node.type.formulize_screen
+  module:
+    - formulize
+id: node.formulize_screen.default
+targetEntityType: node
+bundle: formulize_screen
+mode: default
+content:
+  field_formulize_screen:
+    type: formulize_screen
+    label: hidden
+    weight: 0
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  langcode: true
+  links: true
